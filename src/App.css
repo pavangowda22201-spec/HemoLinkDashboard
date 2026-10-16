@@ -891,6 +891,183 @@ button:disabled {
   font-size: 11px;
 }
 
+/* ---------- DONOR VERIFICATION ---------- */
+
+.verification-search {
+  padding: 20px 22px;
+  border-bottom: 1px solid #eeeeea;
+  background: #fafaf9;
+}
+
+.verification-search-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 170px auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.verification-search label {
+  display: grid;
+  gap: 7px;
+  color: #3f3f46;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.verification-search input,
+.verification-search select {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #dcdcd7;
+  border-radius: 11px;
+  outline: none;
+  color: #18181b;
+  background: white;
+  font-size: 13px;
+}
+
+.verification-search input:focus,
+.verification-search select:focus {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+}
+
+.verification-search input::placeholder {
+  color: #a1a1aa;
+}
+
+.verification-search-button {
+  min-width: 130px;
+}
+
+.verification-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 16px 0;
+  padding: 11px 13px;
+  border: 1px solid #bbf7d0;
+  border-radius: 11px;
+  color: #166534;
+  background: #f0fdf4;
+  font-size: 12px;
+}
+
+.verification-results {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.verification-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e7e7e3;
+  border-radius: 15px;
+  background: #fff;
+}
+
+.verification-card-heading,
+.verification-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.verification-card-identity {
+  min-width: 0;
+  flex: 1;
+}
+
+.verification-card-identity h4,
+.verification-card-identity span {
+  display: block;
+}
+
+.verification-card-identity h4 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.verification-card-identity span,
+.verification-time {
+  margin-top: 4px;
+  color: #71717a;
+  font-size: 11px;
+}
+
+.verification-status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.verification-status.verified {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.verification-status.unverified {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
+.verification-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.verification-details div {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #eeeeea;
+  border-radius: 10px;
+  background: #fafaf9;
+}
+
+.verification-details span,
+.verification-details strong {
+  display: block;
+}
+
+.verification-details span {
+  color: #a1a1aa;
+  font-size: 10px;
+}
+
+.verification-details strong {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.verification-card-footer {
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.verification-time {
+  margin: 0;
+}
+
+.verify-donor-button {
+  min-height: 38px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
 /* ---------- MODAL ---------- */
 
 .modal-backdrop {
@@ -991,6 +1168,14 @@ button:disabled {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .verification-search-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .verification-search-button {
+    width: max-content;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1057,6 +1242,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .verification-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .field.full {
     grid-column: auto;
   }
@@ -1109,6 +1298,32 @@ button:disabled {
 
   .fulfill-button {
     margin-left: 50px;
+  }
+
+  .verification-search-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .verification-search-button {
+    width: 100%;
+  }
+
+  .verification-card-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .verification-card-identity {
+    flex-basis: calc(100% - 62px);
+  }
+
+  .verification-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .verify-donor-button {
+    width: 100%;
   }
 }
 .hemolink-map {

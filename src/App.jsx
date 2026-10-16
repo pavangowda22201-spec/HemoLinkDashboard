@@ -26,6 +26,56 @@ import HospitalLocationPicker from "./HospitalLocationPicker.jsx";
 
 const API = import.meta.env.VITE_API_BASE_URL || "https://hemolink-api-tm3c.onrender.com";
 
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
+function getDonorId(donor) {
+  return donor?.id ?? donor?.donor_id;
+}
+
+function getDonorName(donor) {
+  return donor?.name || donor?.full_name || donor?.donor_name || "Donor";
+}
+
+function getDonorPhone(donor) {
+  return donor?.phone || donor?.phone_number || donor?.donor_phone || "—";
+}
+
+function getDonorBloodGroup(donor) {
+  return donor?.blood_group || donor?.donor_blood_group || "—";
+}
+
+function isDonorVerified(donor) {
+  if (typeof donor?.is_verified === "boolean") return donor.is_verified;
+  if (typeof donor?.verified === "boolean") return donor.verified;
+
+  return String(donor?.verification_status || "").toLowerCase() === "verified";
+}
+
+function getDonorAvailability(donor) {
+  const availability =
+    donor?.availability ?? donor?.is_available ?? donor?.available;
+
+  if (typeof availability === "boolean") {
+    return availability ? "Available" : "Unavailable";
+  }
+
+  return availability ? String(availability) : "Not specified";
+}
+
+function getDonorVerificationTime(donor) {
+  return (
+    donor?.verified_at ||
+    donor?.verification_timestamp ||
+    donor?.verification_date ||
+    donor?.verified_on ||
+    null
+  );
+}
+
+function getDonorDonationCount(donor) {
+  return donor?.donation_count ?? donor?.total_donations ?? 0;
+}
+
 function formatDate(value) {
   if (!value) return "—";
 
@@ -78,6 +128,16 @@ function App() {
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [acceptances, setAcceptances] = useState([]);
+  const [donors, setDonors] = useState([]);
+  const [donorFilters, setDonorFilters] = useState({
+    name: "",
+    phone: "",
+    blood_group: "",
+  });
+  const [donorsLoading, setDonorsLoading] = useState(false);
+  const [donorSearchComplete, setDonorSearchComplete] = useState(false);
+  const [verifyingDonorIds, setVerifyingDonorIds] = useState([]);
+  const [verificationSuccess, setVerificationSuccess] = useState("");
   const [liveDonorLocations, setLiveDonorLocations] = useState({});
   const [trackingConnected, setTrackingConnected] = useState(false);
 
@@ -403,6 +463,108 @@ function App() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * DONOR VERIFICATION
+   * ---------------------------------------------------------
+   */
+
+  const searchDonors = async (event) => {
+    event?.preventDefault();
+
+    setDonorsLoading(true);
+    setError("");
+    setMessage("");
+    setVerificationSuccess("");
+
+    try {
+      const params = new URLSearchParams();
+
+      if (donorFilters.name.trim()) {
+        params.set("name", donorFilters.name.trim());
+      }
+
+      if (donorFilters.phone.trim()) {
+        params.set("phone", donorFilters.phone.trim());
+      }
+
+      if (donorFilters.blood_group) {
+        params.set("blood_group", donorFilters.blood_group);
+      }
+
+      const query = params.toString();
+      const response = await apiFetch(
+        `/donors/search${query ? `?${query}` : ""}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Could not search donors.");
+      }
+
+      const results = Array.isArray(data)
+        ? data
+        : data.donors || data.results || data.items || data.value || [];
+
+      setDonors(Array.isArray(results) ? results : []);
+      setDonorSearchComplete(true);
+    } catch (err) {
+      setDonors([]);
+      setDonorSearchComplete(false);
+      setError(err.message || "Could not search donors.");
+    } finally {
+      setDonorsLoading(false);
+    }
+  };
+
+  const verifyDonor = async (donor) => {
+    const donorId = getDonorId(donor);
+    const donorIdKey = String(donorId);
+
+    if (!donorId || verifyingDonorIds.includes(donorIdKey)) return;
+
+    setVerifyingDonorIds((current) => [...current, donorIdKey]);
+    setError("");
+    setMessage("");
+    setVerificationSuccess("");
+
+    try {
+      const response = await apiFetch(`/donors/${donorId}/verify`, {
+        method: "PATCH",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Could not verify donor.");
+      }
+
+      const verifiedDonor = data.donor || data;
+
+      setDonors((current) =>
+        current.map((currentDonor) =>
+          String(getDonorId(currentDonor)) === donorIdKey
+            ? {
+                ...currentDonor,
+                ...verifiedDonor,
+                is_verified: true,
+                verification_status: "verified",
+              }
+            : currentDonor
+        )
+      );
+
+      const successMessage = `${getDonorName(donor)} has been verified.`;
+      setVerificationSuccess(successMessage);
+      setMessage(successMessage);
+    } catch (err) {
+      setError(err.message || "Could not verify donor.");
+    } finally {
+      setVerifyingDonorIds((current) =>
+        current.filter((id) => id !== donorIdKey)
+      );
     }
   };
 
@@ -783,6 +945,19 @@ function App() {
 
           <button
             className={`nav-item ${
+              page === "verification" ? "active" : ""
+            }`}
+            onClick={() => {
+              setPage("verification");
+              setMobileMenu(false);
+            }}
+          >
+            <ShieldCheck size={17} />
+            Donor Verification
+          </button>
+
+          <button
+            className={`nav-item ${
               page === "notifications" ? "active" : ""
             }`}
             onClick={() => {
@@ -849,6 +1024,8 @@ function App() {
                 ? "Blood requests"
                 : page === "donors"
                 ? "Donor responses"
+                : page === "verification"
+                ? "Donor verification"
                 : page === "notifications"
                 ? "Notifications"
                 : "Hospital profile"}
@@ -1397,6 +1574,212 @@ function App() {
                   Choose a request from the command center to
                   view its donor responses.
                 </span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {page === "verification" && (
+          <section className="panel verification-panel">
+            <div className="panel-header">
+              <div>
+                <div className="panel-kicker">
+                  DONOR NETWORK
+                </div>
+                <h3>Donor verification</h3>
+              </div>
+            </div>
+
+            <form
+              className="verification-search"
+              onSubmit={searchDonors}
+            >
+              <div className="verification-search-grid">
+                <label>
+                  Donor name
+                  <input
+                    value={donorFilters.name}
+                    onChange={(event) =>
+                      setDonorFilters((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
+                    placeholder="Search by name"
+                  />
+                </label>
+
+                <label>
+                  Phone number
+                  <input
+                    type="tel"
+                    value={donorFilters.phone}
+                    onChange={(event) =>
+                      setDonorFilters((current) => ({
+                        ...current,
+                        phone: event.target.value,
+                      }))
+                    }
+                    placeholder="Search by phone"
+                  />
+                </label>
+
+                <label>
+                  Blood group
+                  <select
+                    value={donorFilters.blood_group}
+                    onChange={(event) =>
+                      setDonorFilters((current) => ({
+                        ...current,
+                        blood_group: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">All blood groups</option>
+                    {BLOOD_GROUPS.map((group) => (
+                      <option key={group} value={group}>
+                        {group}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button
+                  className="primary-button verification-search-button"
+                  type="submit"
+                  disabled={donorsLoading}
+                >
+                  {donorsLoading ? (
+                    <>
+                      <RefreshCw className="spin" size={16} />
+                      Searching...
+                    </>
+                  ) : (
+                    "Search donors"
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {verificationSuccess && (
+              <div className="verification-success" role="status">
+                <CheckCircle2 size={16} />
+                <span>{verificationSuccess}</span>
+              </div>
+            )}
+
+            {donorsLoading ? (
+              <div className="empty-state">
+                <RefreshCw size={22} className="spin" />
+                <strong>Searching donors</strong>
+                <span>Checking the donor registry for matching records.</span>
+              </div>
+            ) : !donorSearchComplete ? (
+              <div className="empty-state">
+                <ShieldCheck size={24} />
+                <strong>Search the donor registry</strong>
+                <span>
+                  Search by name, phone number, or blood group to review and
+                  verify donor records.
+                </span>
+              </div>
+            ) : donors.length === 0 ? (
+              <div className="empty-state">
+                <Users size={24} />
+                <strong>No donors found</strong>
+                <span>Try changing the search details and search again.</span>
+              </div>
+            ) : (
+              <div className="verification-results">
+                {donors.map((donor) => {
+                  const donorId = getDonorId(donor);
+                  const donorIdKey = String(donorId);
+                  const verified = isDonorVerified(donor);
+                  const verificationTime = getDonorVerificationTime(donor);
+                  const isVerifying = verifyingDonorIds.includes(donorIdKey);
+                  const reliabilityScore = donor.reliability_score;
+
+                  return (
+                    <article
+                      className="verification-card"
+                      key={donorIdKey}
+                    >
+                      <div className="verification-card-heading">
+                        <div className="acceptance-avatar">
+                          <ShieldCheck size={17} />
+                        </div>
+
+                        <div className="verification-card-identity">
+                          <h4>{getDonorName(donor)}</h4>
+                          <span>{getDonorPhone(donor)}</span>
+                        </div>
+
+                        <span
+                          className={`verification-status ${
+                            verified ? "verified" : "unverified"
+                          }`}
+                        >
+                          {verified ? "Verified" : "Unverified"}
+                        </span>
+                      </div>
+
+                      <div className="verification-details">
+                        <div>
+                          <span>Blood group</span>
+                          <strong>{getDonorBloodGroup(donor)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Availability</span>
+                          <strong>{getDonorAvailability(donor)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Reliability score</span>
+                          <strong>
+                            {reliabilityScore == null
+                              ? "—"
+                              : `${Number(reliabilityScore).toFixed(0)}%`}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Donation count</span>
+                          <strong>{getDonorDonationCount(donor)}</strong>
+                        </div>
+                      </div>
+
+                      <div className="verification-card-footer">
+                        <span className="verification-time">
+                          {verificationTime
+                            ? `Verification: ${formatDate(verificationTime)}`
+                            : "No verification timestamp"}
+                        </span>
+
+                        {!verified && (
+                          <button
+                            className="primary-button verify-donor-button"
+                            type="button"
+                            disabled={!donorId || isVerifying}
+                            onClick={() => verifyDonor(donor)}
+                          >
+                            {isVerifying ? (
+                              <>
+                                <RefreshCw className="spin" size={15} />
+                                Verifying...
+                              </>
+                            ) : (
+                              <>
+                                <ShieldCheck size={15} />
+                                Verify donor
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>

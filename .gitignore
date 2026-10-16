@@ -28,3 +28,6 @@ dist-ssr
 # HemoLink backups
 tracking-backup-*
 HemoLinkDashboard-*.zip
+
+src/*.before-*
+
